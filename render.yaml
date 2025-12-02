@@ -1,0 +1,54 @@
+databases:
+  - name: sage3280-db
+    databaseName: sage3280_db
+    user: sage_user
+    plan: free
+
+services:
+  # Backend API
+  - type: web
+    name: sage3280-backend
+    runtime: python
+    plan: free
+    buildCommand: pip install -r backend/requirements.txt
+    startCommand: cd backend && uvicorn app.main:app --host 0.0.0.0 --port $PORT
+    healthCheckPath: /health
+    envVars:
+      - key: DATABASE_URL
+        fromDatabase:
+          name: sage3280-db
+          property: connectionString
+      - key: API_HOST
+        value: 0.0.0.0
+      - key: API_PORT
+        sync: false
+      - key: DEBUG
+        value: False
+      - key: SECRET_KEY
+        generateValue: true
+      - key: ALGORITHM
+        value: HS256
+      - key: ACCESS_TOKEN_EXPIRE_MINUTES
+        value: 30
+      - key: MAX_UPLOAD_SIZE
+        value: 52428800
+      - key: ALLOWED_EXTENSIONS
+        value: xlsx,xls,csv
+      - key: APP_NAME
+        value: SAGE3280
+      - key: VERSION
+        value: 1.0.0
+      - key: CORS_ORIGINS
+        value: "*"
+
+  # Frontend
+  - type: web
+    name: sage3280-frontend
+    runtime: static
+    plan: free
+    buildCommand: cd frontend && npm install && VITE_API_URL=https://sage3280-backend.onrender.com/api npm run build
+    staticPublishPath: frontend/dist
+    routes:
+      - type: rewrite
+        source: /*
+        destination: /index.html
