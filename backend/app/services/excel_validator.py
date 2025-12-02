@@ -14,23 +14,21 @@ class ExcelValidator:
     # Required columns (at least one variant must exist)
     REQUIRED_COLUMNS = {
         'document': ['documento', 'cedula', 'cc', 'identificacion', 'doc', 'num_documento'],
-        'full_name': ['nombre/apellido', 'nombre_apellido', 'nombre_completo', 'full_name', 'paciente'],
         'first_name': ['nombre', 'nombres', 'primer_nombre', 'name'],
         'last_name': ['apellido', 'apellidos', 'primer_apellido', 'lastname'],
         'age': ['edad', 'age'],
-        'birth_date': ['fecha_nacimiento', 'fecha_nac', 'nacimiento', 'fec_nac', 'birthdate', 'fecha_de_nacimiento'],
+        'birth_date': ['fecha_nacimiento', 'fecha_nac', 'nacimiento', 'fec_nac', 'birthdate'],
         'sex': ['sexo', 'genero', 'sex', 'gender'],
     }
 
     # Optional columns
     OPTIONAL_COLUMNS = {
-        'phone': ['telefono', 'teléfono', 'celular', 'tel', 'phone', 'movil'],
+        'phone': ['telefono', 'celular', 'tel', 'phone', 'movil'],
         'email': ['email', 'correo', 'mail'],
-        'address': ['direccion', 'dirección', 'dir', 'address'],
+        'address': ['direccion', 'dir', 'address'],
         'city': ['ciudad', 'municipio', 'city'],
-        'eps': ['eps', 'aseguradora', 'seguro'],
-        'diagnoses': ['diagnostico', 'diagnosticos', 'diagnósticos', 'dx', 'diagnoses'],
-        'last_control': ['ultimo_control', 'último_control', 'ult_control', 'last_control', 'fecha_ultimo_control', 'fecha_último_control'],
+        'diagnoses': ['diagnostico', 'diagnosticos', 'dx', 'diagnoses'],
+        'last_control': ['ultimo_control', 'ult_control', 'last_control'],
     }
 
     # Valid values
@@ -81,17 +79,6 @@ class ExcelValidator:
 
             if not found:
                 missing_required.append(field)
-
-        # Special handling for name fields: accept either full_name OR (first_name AND last_name)
-        has_full_name = 'full_name' not in missing_required
-        has_split_names = 'first_name' not in missing_required and 'last_name' not in missing_required
-
-        if not has_full_name and not has_split_names:
-            # Neither format is present
-            errors.append("Se requiere 'Nombre/Apellido' (combinado) O 'Nombre' y 'Apellido' (separados)")
-        else:
-            # Remove name fields from missing_required if we have either format
-            missing_required = [f for f in missing_required if f not in ['full_name', 'first_name', 'last_name']]
 
         if missing_required:
             errors.append(f"Faltan columnas requeridas: {', '.join(missing_required)}")
