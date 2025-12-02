@@ -44,11 +44,10 @@ services:
   # Frontend
   - type: web
     name: sage3280-frontend
-    runtime: static
+    runtime: node
     plan: free
-    buildCommand: cd frontend && npm install && VITE_API_URL=https://sage3280-backend.onrender.com/api npm run build
-    staticPublishPath: frontend/dist
-    routes:
-      - type: rewrite
-        source: /*
-        destination: /index.html
+    buildCommand: cd frontend && npm install && VITE_API_URL=$BACKEND_URL/api npm run build
+    startCommand: cd frontend && npm install -g serve && serve -s dist -l $PORT
+    envVars:
+      - key: BACKEND_URL
+        value: https://sage3280-backend.onrender.com
