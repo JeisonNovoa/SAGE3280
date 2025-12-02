@@ -184,8 +184,17 @@ class ExcelProcessor:
                 if not document or document == 'nan':
                     continue  # Skip rows without document
 
-                first_name = str(self._get_column_value(row, 'first_name', '')).strip()
-                last_name = str(self._get_column_value(row, 'last_name', '')).strip()
+                # Handle names: try full_name first, then split names
+                full_name = self._get_column_value(row, 'full_name', None)
+                if full_name and not pd.isna(full_name):
+                    # Split full name into first and last
+                    name_parts = str(full_name).strip().split(maxsplit=1)
+                    first_name = name_parts[0] if len(name_parts) > 0 else ''
+                    last_name = name_parts[1] if len(name_parts) > 1 else ''
+                else:
+                    # Use separate columns
+                    first_name = str(self._get_column_value(row, 'first_name', '')).strip()
+                    last_name = str(self._get_column_value(row, 'last_name', '')).strip()
 
                 if not first_name and not last_name:
                     continue  # Skip if no name
