@@ -5,6 +5,7 @@ from datetime import date, datetime
 
 class PatientBase(BaseModel):
     document_number: str
+    document_type: Optional[str] = None
     first_name: str
     last_name: str
     birth_date: Optional[date] = None
@@ -12,6 +13,10 @@ class PatientBase(BaseModel):
     phone: Optional[str] = None
     email: Optional[str] = None
     address: Optional[str] = None
+    neighborhood: Optional[str] = None
+    city: Optional[str] = None
+    eps: Optional[str] = None
+    tipo_convenio: Optional[str] = None
 
 
 class PatientCreate(PatientBase):
@@ -46,6 +51,7 @@ class ControlResponse(BaseModel):
 class PatientResponse(BaseModel):
     id: int
     document_number: str
+    document_type: Optional[str] = None
     full_name: str
     age: Optional[int] = None
     sex: Optional[str] = None
@@ -53,6 +59,10 @@ class PatientResponse(BaseModel):
     phone: Optional[str] = None
     email: Optional[str] = None
     address: Optional[str] = None
+    neighborhood: Optional[str] = None
+    city: Optional[str] = None
+    eps: Optional[str] = None
+    tipo_convenio: Optional[str] = None
 
     # Health status
     is_pregnant: bool = False
@@ -60,6 +70,13 @@ class PatientResponse(BaseModel):
     is_diabetic: bool = False
     has_cardiovascular_risk: bool = False
     cardiovascular_risk_level: Optional[str] = None
+    diagnoses: Optional[str] = None
+
+    # Control dates
+    last_general_control_date: Optional[date] = None
+    last_3280_control_date: Optional[date] = None
+    last_hta_control_date: Optional[date] = None
+    last_dm_control_date: Optional[date] = None
 
     # Controls and Alerts
     controls: List[ControlResponse] = []

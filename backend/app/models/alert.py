@@ -6,35 +6,68 @@ import enum
 
 
 class AlertTypeEnum(str, enum.Enum):
-    # Exámenes de laboratorio
+    # Exámenes de laboratorio - General
     PERFIL_LIPIDICO = "perfil_lipidico"
     GLICEMIA = "glicemia"
     HBA1C = "hba1c"
     CREATININA = "creatinina"
     POTASIO = "potasio"
     MICROALBUMINURIA = "microalbuminuria"
+    HEMOGRAMA = "hemograma"
+    PARCIAL_ORINA = "parcial_orina"
+
+    # Exámenes de laboratorio - Condiciones específicas
+    TSH = "tsh"  # Hormona estimulante de tiroides (hipotiroidismo)
+    T4_LIBRE = "t4_libre"  # Tiroxina libre
+    ESPIROMETRIA = "espirometria"  # EPOC, Asma
+    GASES_ARTERIALES = "gases_arteriales"  # EPOC
+    CLEARANCE_CREATININA = "clearance_creatinina"  # IRC
+    BUN = "bun"  # Nitrógeno ureico en sangre - IRC
 
     # Exámenes de imágenes
     MAMOGRAFIA = "mamografia"
     ECOGRAFIA = "ecografia"
+    ECOGRAFIA_OBSTETRICA = "ecografia_obstetrica"
     RAYOS_X = "rayos_x"
+    RAYOS_X_TORAX = "rayos_x_torax"  # EPOC
     EKG = "ekg"
+    ECOCARDIOGRAMA = "ecocardiograma"  # Enfermedad cardiovascular
 
-    # Tamizajes
+    # Tamizajes preventivos
     PSA = "psa"
     CITOLOGIA = "citologia"
     VPH = "vph"
     COLONOSCOPIA = "colonoscopia"
+    SANGRE_OCULTA_HECES = "sangre_oculta_heces"  # Tamizaje cáncer colorrectal
 
-    # Evaluaciones
+    # Evaluaciones específicas
     FONDO_OJO = "fondo_ojo"
     VALORACION_PIE_DIABETICO = "valoracion_pie_diabetico"
     EVALUACION_RIESGO_CV = "evaluacion_riesgo_cardiovascular"
+    AGUDEZA_VISUAL = "agudeza_visual"
+    AGUDEZA_AUDITIVA = "agudeza_auditiva"
+    VALORACION_ODONTOLOGICA = "valoracion_odontologica"
 
-    # Otros
-    VACUNA = "vacuna"
+    # Vacunación
+    VACUNA_INFLUENZA = "vacuna_influenza"
+    VACUNA_NEUMOCOCO = "vacuna_neumococo"
+    VACUNA_COVID = "vacuna_covid"
+    VACUNA_VPH = "vacuna_vph"
+    VACUNA_HEPATITIS_B = "vacuna_hepatitis_b"
+    VACUNA_TETANOS = "vacuna_tetanos"
+    ESQUEMA_VACUNACION_COMPLETO = "esquema_vacunacion_completo"
+
+    # Mediciones y controles rutinarios
     TOMA_PRESION = "toma_presion"
     MEDICION_IMC = "medicion_imc"
+    MEDICION_PESO_TALLA = "medicion_peso_talla"
+
+    # Evaluaciones desarrollo infantil
+    TAMIZAJE_DESARROLLO = "tamizaje_desarrollo"
+    VALORACION_CRECIMIENTO = "valoracion_crecimiento"
+
+    # Otros
+    REFILL_MEDICAMENTO = "refill_medicamento"  # Alerta de renovación de medicamento
 
 
 class AlertPriorityEnum(str, enum.Enum):

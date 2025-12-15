@@ -170,6 +170,11 @@ def get_priority_list(
             is_pregnant=patient.is_pregnant,
             is_hypertensive=patient.is_hypertensive,
             is_diabetic=patient.is_diabetic,
+            has_hypothyroidism=getattr(patient, 'has_hypothyroidism', False),
+            has_copd=getattr(patient, 'has_copd', False),
+            has_asthma=getattr(patient, 'has_asthma', False),
+            has_ckd=getattr(patient, 'has_ckd', False),
+            has_cardiovascular_disease=getattr(patient, 'has_cardiovascular_disease', False),
             has_cardiovascular_risk=patient.has_cardiovascular_risk,
             cardiovascular_risk_level=patient.cardiovascular_risk_level,
             last_control_date=patient.last_control_date

@@ -6,23 +6,40 @@ import enum
 
 
 class ControlTypeEnum(str, enum.Enum):
-    # Controles por edad
-    CONTROL_NINO_SANO = "control_nino_sano"
-    CONTROL_CRECIMIENTO_DESARROLLO = "control_crecimiento_desarrollo"
-    CONTROL_JUVENTUD = "control_juventud"
-    CONTROL_ADULTO = "control_adulto"
-    CONTROL_VEJEZ = "control_vejez"
+    # Controles RIAS por grupo etario (Grupo A - Prevención)
+    CONTROL_PRIMERA_INFANCIA = "control_primera_infancia"  # 0-5 años
+    CONTROL_CRECIMIENTO_DESARROLLO = "control_crecimiento_desarrollo"  # 0-5 años
+    CONTROL_INFANCIA = "control_infancia"  # 6-11 años
+    CONTROL_ADOLESCENCIA = "control_adolescencia"  # 12-17 años
+    CONTROL_JUVENTUD = "control_juventud"  # 18-28 años
+    CONTROL_ADULTEZ = "control_adultez"  # 29-59 años
+    CONTROL_VEJEZ = "control_vejez"  # 60+ años
 
-    # Controles específicos
+    # Controles preventivos específicos (Grupo A)
+    SALUD_SEXUAL_REPRODUCTIVA = "salud_sexual_reproductiva"
+    PLANIFICACION_FAMILIAR = "planificacion_familiar"
+    DETECCION_ITS = "deteccion_its"  # Infecciones de transmisión sexual
+    SALUD_MENTAL = "salud_mental"
+    SALUD_ORAL = "salud_oral"
+    VALORACION_NUTRICIONAL = "valoracion_nutricional"
+    VALORACION_GERIATRICA = "valoracion_geriatrica"
+    EVALUACION_FUNCIONALIDAD = "evaluacion_funcionalidad"  # Adulto mayor
+    VACUNACION = "vacunacion"
+
+    # Controles para condiciones crónicas (Grupo B)
     CONTROL_PRENATAL = "control_prenatal"
     CONTROL_HIPERTENSO = "control_hipertenso"
     CONTROL_DIABETICO = "control_diabetico"
-    CONTROL_RIESGO_CV = "control_riesgo_cardiovascular"
+    CONTROL_HIPOTIROIDISMO = "control_hipotiroidismo"
+    CONTROL_EPOC = "control_epoc"  # Enfermedad Pulmonar Obstructiva Crónica
+    CONTROL_ASMA = "control_asma"
+    CONTROL_IRC = "control_irc"  # Insuficiencia Renal Crónica
+    CONTROL_CARDIOVASCULAR = "control_cardiovascular"  # Enfermedad cardiovascular establecida
+    CONTROL_RIESGO_CV = "control_riesgo_cardiovascular"  # Evaluación de riesgo
 
-    # Otros
-    SALUD_MENTAL = "salud_mental"
-    SALUD_ORAL = "salud_oral"
-    VACUNACION = "vacunacion"
+    # Controles de seguimiento
+    CONTROL_MEDICAMENTOS = "control_medicamentos"  # Revisión de adherencia
+    CONTROL_RESULTADOS = "control_resultados"  # Revisión de resultados de exámenes
 
 
 class ControlStatusEnum(str, enum.Enum):
