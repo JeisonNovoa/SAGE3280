@@ -12,26 +12,43 @@ class ExcelProcessor:
     """
 
     # Possible column name mappings (flexible to handle different formats)
+    # NOTE: All variants should be normalized (no accents, lowercase, underscores)
     COLUMN_MAPPINGS = {
         'document': ['documento', 'cedula', 'cc', 'identificacion', 'doc', 'numero_documento'],
-        'first_name': ['nombre', 'nombres', 'primer_nombre', 'name', 'first_name'],
-        'last_name': ['apellido', 'apellidos', 'last_name', 'surname'],
-        'birth_date': ['fecha_nacimiento', 'nacimiento', 'fecha_nac', 'birth_date', 'dob', 'fec_nacimiento'],
-        'age': ['edad', 'age'],
+        'document_type': ['tipo_de_documento', 'tipo_documento', 'tipo_doc', 'tipodocumento'],
+        'first_name': ['nombres', 'nombre', 'primer_nombre', 'name', 'first_name'],
+        'last_name': ['apellidos', 'apellido', 'last_name', 'surname'],
+        'birth_date': ['fecha_de_nacimiento', 'fecha_nacimiento', 'nacimiento', 'fecha_nac', 'birth_date', 'dob', 'fec_nacimiento', 'fechanacimiento'],
         'sex': ['sexo', 'genero', 'sex', 'gender'],
         'phone': ['telefono', 'celular', 'tel', 'phone', 'movil'],
         'email': ['correo', 'email', 'e-mail', 'mail'],
-        'address': ['direccion', 'address', 'dir'],
-        'city': ['ciudad', 'city', 'municipio'],
+        'neighborhood': ['barrio___vereda', 'barrio__vereda', 'barrio_vereda', 'barrio', 'vereda'],
+        'city': ['municipio', 'ciudad', 'city'],
         'eps': ['eps', 'aseguradora', 'eapb'],
-        'diagnoses': ['diagnostico', 'diagnosticos', 'dx', 'diagnoses', 'patologias'],
-        'last_control': ['ultimo_control', 'fecha_control', 'last_control', 'fec_control'],
+        'tipo_convenio': ['tipo_de_convenio', 'tipo_convenio', 'tipoconvenio', 'convenio'],
+        'diagnoses': ['diagnosticos_texto_libre_y_o_codigos_cie-10', 'diagnosticos', 'codigos_cie-10', 'codigos_cie10', 'dx', 'diagnoses', 'patologias'],
+        'last_general_control': ['fecha_ultimo_control_general', 'ultimo_control_general', 'ult_control_general', 'fechaultimocontrolgeneral'],
+        'last_3280_control': ['fecha_ultimo_control_3280', 'ultimo_control_3280', 'ult_control_3280', 'fechaultimocontrol3280'],
+        'last_hta_control': ['fecha_ultimo_control_hta', 'ultimo_control_hta', 'ult_control_hta', 'fechaultimocontrolhta'],
+        'last_dm_control': ['fecha_ultimo_control_dm', 'ultimo_control_dm', 'ult_control_dm', 'fechaultimocontroldm'],
     }
 
     def __init__(self):
         self.df: Optional[pd.DataFrame] = None
         self.column_map: Dict[str, str] = {}
         self.validation_result: Optional[Dict] = None
+
+    def _normalize_column_name(self, col_name: str) -> str:
+        """
+        Normalize column name: lowercase, no spaces, no accents.
+        """
+        import unicodedata
+        # Remove accents/tildes
+        normalized = unicodedata.normalize('NFKD', str(col_name))
+        without_accents = ''.join([c for c in normalized if not unicodedata.combining(c)])
+        # Lowercase and replace spaces/special chars with underscore
+        clean = without_accents.lower().strip().replace(' ', '_').replace('/', '_').replace('(', '').replace(')', '')
+        return clean
 
     def load_file(self, file_path: str) -> Tuple[bool, str, int]:
         """
@@ -49,8 +66,8 @@ class ExcelProcessor:
             if self.df.empty:
                 return False, "El archivo está vacío", 0
 
-            # Clean column names (lowercase, no spaces)
-            self.df.columns = self.df.columns.str.lower().str.strip().str.replace(' ', '_')
+            # Clean column names (lowercase, no spaces, no accents)
+            self.df.columns = [self._normalize_column_name(col) for col in self.df.columns]
 
             # VALIDATE SCHEMA BEFORE PROCESSING
             self.validation_result = ExcelValidator.validate_file(self.df)
@@ -184,6 +201,8 @@ class ExcelProcessor:
                 if not document or document == 'nan':
                     continue  # Skip rows without document
 
+                document_type = str(self._get_column_value(row, 'document_type', '')).strip() or None
+
                 first_name = str(self._get_column_value(row, 'first_name', '')).strip()
                 last_name = str(self._get_column_value(row, 'last_name', '')).strip()
 
@@ -192,14 +211,7 @@ class ExcelProcessor:
 
                 # Parse birth date and calculate age
                 birth_date = self._parse_date(self._get_column_value(row, 'birth_date'))
-                age = self._get_column_value(row, 'age')
-
-                if age and not pd.isna(age):
-                    age = int(age)
-                elif birth_date:
-                    age = self._calculate_age(birth_date)
-                else:
-                    age = None
+                age = self._calculate_age(birth_date) if birth_date else None
 
                 # Normalize sex
                 sex = self._normalize_sex(self._get_column_value(row, 'sex'))
@@ -208,12 +220,16 @@ class ExcelProcessor:
                 diagnoses_value = self._get_column_value(row, 'diagnoses')
                 is_hypertensive, is_diabetic, is_pregnant = self._extract_diagnoses(diagnoses_value)
 
-                # Parse last control date
-                last_control = self._parse_date(self._get_column_value(row, 'last_control'))
+                # Parse control dates
+                last_general_control = self._parse_date(self._get_column_value(row, 'last_general_control'))
+                last_3280_control = self._parse_date(self._get_column_value(row, 'last_3280_control'))
+                last_hta_control = self._parse_date(self._get_column_value(row, 'last_hta_control'))
+                last_dm_control = self._parse_date(self._get_column_value(row, 'last_dm_control'))
 
                 # Build patient dict
                 patient_data = {
                     'document_number': document,
+                    'document_type': document_type,
                     'first_name': first_name,
                     'last_name': last_name,
                     'full_name': f"{first_name} {last_name}".strip(),
@@ -223,13 +239,18 @@ class ExcelProcessor:
                     'phone': str(self._get_column_value(row, 'phone', '')).strip() or None,
                     'email': str(self._get_column_value(row, 'email', '')).strip() or None,
                     'address': str(self._get_column_value(row, 'address', '')).strip() or None,
+                    'neighborhood': str(self._get_column_value(row, 'neighborhood', '')).strip() or None,
                     'city': str(self._get_column_value(row, 'city', '')).strip() or None,
                     'eps': str(self._get_column_value(row, 'eps', '')).strip() or None,
+                    'tipo_convenio': str(self._get_column_value(row, 'tipo_convenio', '')).strip() or None,
                     'diagnoses': str(diagnoses_value) if not pd.isna(diagnoses_value) else None,
                     'is_hypertensive': is_hypertensive,
                     'is_diabetic': is_diabetic,
                     'is_pregnant': is_pregnant,
-                    'last_control_date': last_control,
+                    'last_general_control_date': last_general_control,
+                    'last_3280_control_date': last_3280_control,
+                    'last_hta_control_date': last_hta_control,
+                    'last_dm_control_date': last_dm_control,
                 }
 
                 patients.append(patient_data)
