@@ -195,4 +195,36 @@ export const exportService = {
   },
 };
 
+// Admin service
+export const adminService = {
+  getDatabaseStats: async () => {
+    const response = await api.get('/admin/database-stats');
+    return response.data;
+  },
+
+  listUploads: async () => {
+    const response = await api.get('/admin/uploads');
+    return response.data;
+  },
+
+  deleteAllPatients: async () => {
+    const response = await api.delete('/admin/patients/all', {
+      params: { confirm: 'YES_DELETE_ALL_PATIENTS' },
+    });
+    return response.data;
+  },
+
+  deletePatientsByUpload: async (uploadId) => {
+    const response = await api.delete(`/admin/patients/upload/${uploadId}`);
+    return response.data;
+  },
+
+  clearDatabase: async () => {
+    const response = await api.delete('/admin/clear-database', {
+      params: { confirm: 'YES_DELETE_ALL_DATA' },
+    });
+    return response.data;
+  },
+};
+
 export default api;

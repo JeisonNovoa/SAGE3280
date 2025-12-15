@@ -5,6 +5,7 @@ import Upload from './pages/Upload';
 import Patients from './pages/Patients';
 import PatientDetail from './pages/PatientDetail';
 import PriorityList from './pages/PriorityList';
+import Admin from './pages/Admin';
 
 function App() {
   return (
@@ -15,6 +16,7 @@ function App() {
         <Route path="patients" element={<Patients />} />
         <Route path="patients/:id" element={<PatientDetail />} />
         <Route path="priority" element={<PriorityList />} />
+        <Route path="admin" element={<Admin />} />
       </Route>
     </Routes>
   );

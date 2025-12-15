@@ -1,5 +1,5 @@
 import { Outlet, Link, useLocation } from 'react-router-dom';
-import { Home, Upload, Users, Activity, ListTodo } from 'lucide-react';
+import { Home, Upload, Users, Activity, ListTodo, Settings } from 'lucide-react';
 
 const Layout = () => {
   const location = useLocation();
@@ -9,6 +9,7 @@ const Layout = () => {
     { name: 'Cargar Excel', href: '/upload', icon: Upload },
     { name: 'Pacientes', href: '/patients', icon: Users },
     { name: 'Lista de Prioridad', href: '/priority', icon: ListTodo },
+    { name: 'Administración', href: '/admin', icon: Settings },
   ];
 
   const isActive = (path) => {
