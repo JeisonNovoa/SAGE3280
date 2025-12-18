@@ -2,7 +2,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from app.config import settings
 from app.database import init_db
-from app.api.routes import upload, patients, stats, export, controls, alerts, admin
+from app.api.routes import upload, patients, stats, export, controls, alerts, admin, rules
 
 # Create FastAPI app
 app = FastAPI(
@@ -31,6 +31,7 @@ app.include_router(export.router, prefix="/api")
 app.include_router(controls.router, prefix="/api")
 app.include_router(alerts.router, prefix="/api")
 app.include_router(admin.router, prefix="/api")
+app.include_router(rules.router, prefix="/api")  # Configurable rules management
 
 
 @app.on_event("startup")

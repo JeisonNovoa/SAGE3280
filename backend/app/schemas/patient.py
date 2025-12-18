@@ -56,6 +56,7 @@ class PatientResponse(BaseModel):
     age: Optional[int] = None
     sex: Optional[str] = None
     age_group: Optional[str] = None
+    attention_type: Optional[str] = None  # Grupo A/B/C
     phone: Optional[str] = None
     email: Optional[str] = None
     address: Optional[str] = None

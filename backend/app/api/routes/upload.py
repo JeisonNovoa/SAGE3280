@@ -132,7 +132,7 @@ def process_upload(upload_id: int, file_path: str, db: Session):
 
                 db.flush()  # Get patient ID
 
-                # Classify patient
+                # Classify patient by age group
                 age_group = PatientClassifier.classify_age_group(patient.age)
                 patient.age_group = age_group
 
@@ -145,6 +145,19 @@ def process_upload(upload_id: int, file_path: str, db: Session):
                 )
                 patient.has_cardiovascular_risk = has_cv_risk
                 patient.cardiovascular_risk_level = cv_risk_level
+
+                # Classify patient by attention type (Grupo A/B/C)
+                attention_type = PatientClassifier.classify_attention_type(
+                    is_hypertensive=patient.is_hypertensive,
+                    is_diabetic=patient.is_diabetic,
+                    has_hypothyroidism=getattr(patient, 'has_hypothyroidism', False),
+                    has_copd=getattr(patient, 'has_copd', False),
+                    has_asthma=getattr(patient, 'has_asthma', False),
+                    has_ckd=getattr(patient, 'has_ckd', False),
+                    has_cardiovascular_disease=getattr(patient, 'has_cardiovascular_disease', False),
+                    has_cardiovascular_risk=has_cv_risk
+                )
+                patient.attention_type = attention_type
 
                 # Generate controls
                 required_controls = PatientClassifier.determine_required_controls(

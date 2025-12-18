@@ -27,6 +27,18 @@ class RiskLevelEnum(str, enum.Enum):
     MUY_ALTO = "muy_alto"
 
 
+class AttentionTypeEnum(str, enum.Enum):
+    """
+    Tipo de atención según clasificación SAGE3280:
+    - GRUPO_A: Atención preventiva (RIAS) - Pacientes sanos o con factores de riesgo
+    - GRUPO_B: Paciente crónico - Seguimiento activo de condiciones crónicas
+    - GRUPO_C: Consulta externa general - No clasificable en A o B
+    """
+    GRUPO_A = "grupo_a"  # Atención Preventiva (RIAS)
+    GRUPO_B = "grupo_b"  # Paciente Crónico
+    GRUPO_C = "grupo_c"  # Consulta Externa General
+
+
 class Patient(Base):
     __tablename__ = "patients"
 
@@ -47,6 +59,7 @@ class Patient(Base):
 
     # Clasificación
     age_group = Column(Enum(AgeGroupEnum), nullable=True, index=True)
+    attention_type = Column(Enum(AttentionTypeEnum), nullable=True, index=True)  # Grupo A/B/C
 
     # Contacto
     phone = Column(String(20), nullable=True)

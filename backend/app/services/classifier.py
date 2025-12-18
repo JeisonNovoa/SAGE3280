@@ -1,5 +1,5 @@
 from typing import List, Dict, Optional
-from app.models.patient import AgeGroupEnum
+from app.models.patient import AgeGroupEnum, AttentionTypeEnum
 from app.models.control import ControlTypeEnum
 from datetime import date, timedelta
 
@@ -32,6 +32,51 @@ class PatientClassifier:
             return AgeGroupEnum.VEJEZ.value
         else:
             return None
+
+    @staticmethod
+    def classify_attention_type(
+        is_hypertensive: bool,
+        is_diabetic: bool,
+        has_hypothyroidism: bool,
+        has_copd: bool,
+        has_asthma: bool,
+        has_ckd: bool,
+        has_cardiovascular_disease: bool,
+        has_cardiovascular_risk: bool
+    ) -> str:
+        """
+        Classify patient by attention type (Grupo A/B/C).
+
+        Returns:
+        - GRUPO_B: Paciente with any chronic condition requiring active follow-up
+        - GRUPO_A: Healthy patient requiring preventive care (RIAS)
+        - GRUPO_C: General external consultation (rare, fallback)
+
+        Classification logic:
+        - Grupo B takes priority (any chronic condition = Grupo B)
+        - Grupo A is default for patients without chronic conditions
+        - Grupo C is for edge cases (no age info, no conditions, etc.)
+        """
+        # GRUPO B: Paciente Crónico
+        # Any chronic condition qualifies for Grupo B
+        if any([
+            is_hypertensive,
+            is_diabetic,
+            has_hypothyroidism,
+            has_copd,
+            has_asthma,
+            has_ckd,
+            has_cardiovascular_disease
+        ]):
+            return AttentionTypeEnum.GRUPO_B.value
+
+        # GRUPO A: Atención Preventiva (RIAS)
+        # Patients without chronic conditions but may have cardiovascular risk
+        # or simply need preventive care by age
+        return AttentionTypeEnum.GRUPO_A.value
+
+        # Note: GRUPO_C would be assigned manually for special cases
+        # like one-time consultations without ongoing follow-up needs
 
     @staticmethod
     def determine_required_controls(
