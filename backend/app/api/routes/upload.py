@@ -136,15 +136,23 @@ def process_upload(upload_id: int, file_path: str, db: Session):
                 age_group = PatientClassifier.classify_age_group(patient.age)
                 patient.age_group = age_group
 
-                # Calculate cardiovascular risk
-                has_cv_risk, cv_risk_level = PatientClassifier.calculate_cardiovascular_risk(
+                # Calculate cardiovascular risk (advanced algorithms)
+                has_cv_risk, cv_risk_level, cv_detailed = PatientClassifier.calculate_cardiovascular_risk(
                     age=patient.age,
                     sex=patient.sex,
                     is_hypertensive=patient.is_hypertensive,
-                    is_diabetic=patient.is_diabetic
+                    is_diabetic=patient.is_diabetic,
+                    is_smoker=getattr(patient, 'is_smoker', False),
+                    systolic_bp=getattr(patient, 'last_systolic_bp', None),
+                    diastolic_bp=getattr(patient, 'last_diastolic_bp', None),
+                    cholesterol_total=getattr(patient, 'last_cholesterol', None),
+                    hdl=getattr(patient, 'last_hdl', None),
+                    ldl=getattr(patient, 'last_ldl', None),
+                    glucose=getattr(patient, 'last_glucose', None)
                 )
                 patient.has_cardiovascular_risk = has_cv_risk
                 patient.cardiovascular_risk_level = cv_risk_level
+                # cv_detailed contains Framingham/ASCVD/Ausangate results if calculated
 
                 # Classify patient by attention type (Grupo A/B/C)
                 attention_type = PatientClassifier.classify_attention_type(

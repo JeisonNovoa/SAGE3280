@@ -7,8 +7,12 @@ from app.models.medication import Medication
 from app.models.control_rule import ControlRule
 from app.models.alert_rule import AlertRule
 from app.models.rias_guideline import RiasGuideline
+from app.models.eps import Eps
+from app.models.cie10 import Cie10
+from app.models.cups import Cups
 
 __all__ = [
     "Patient", "AttentionTypeEnum", "Upload", "Control", "Alert", "Exam", "Medication",
-    "ControlRule", "AlertRule", "RiasGuideline"
+    "ControlRule", "AlertRule", "RiasGuideline",
+    "Eps", "Cie10", "Cups"
 ]

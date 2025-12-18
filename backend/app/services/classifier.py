@@ -1,6 +1,7 @@
 from typing import List, Dict, Optional
 from app.models.patient import AgeGroupEnum, AttentionTypeEnum
 from app.models.control import ControlTypeEnum
+from app.services.risk_calculator import RiskCalculator
 from datetime import date, timedelta
 
 
@@ -471,20 +472,60 @@ class PatientClassifier:
         is_diabetic: bool,
         is_smoker: bool = False,
         systolic_bp: Optional[int] = None,
+        diastolic_bp: Optional[int] = None,
         cholesterol_total: Optional[float] = None,
-        hdl: Optional[float] = None
-    ) -> tuple[bool, Optional[str]]:
+        hdl: Optional[float] = None,
+        ldl: Optional[float] = None,
+        glucose: Optional[float] = None,
+        bmi: Optional[float] = None,
+        is_on_bp_meds: bool = False
+    ) -> tuple[bool, Optional[str], Optional[Dict]]:
         """
-        Calculate cardiovascular risk level.
+        Calculate cardiovascular risk level using advanced algorithms.
 
-        Uses simplified risk scoring if lab values not available.
-        Could be enhanced with Framingham/ASCVD calculation when labs available.
+        Uses Ausangate (Latin America adapted), ASCVD, or Framingham based on
+        available data. Falls back to simplified scoring if insufficient data.
 
-        Returns: (has_risk, risk_level)
+        Returns: (has_risk, risk_level, detailed_results)
+            - has_risk: bool indicating if patient has CV risk
+            - risk_level: str category (bajo, medio, alto, muy_alto)
+            - detailed_results: Dict with algorithm outputs (if calculated)
         """
-        if not age:
-            return False, None
+        if not age or not sex:
+            return False, None, None
 
+        # Try advanced calculation if we have essential lab values
+        if all([systolic_bp, cholesterol_total, hdl]) and age >= 30:
+            try:
+                comprehensive_risk = RiskCalculator.calculate_comprehensive_cv_risk(
+                    age=age,
+                    sex=sex,
+                    systolic_bp=systolic_bp,
+                    diastolic_bp=diastolic_bp,
+                    cholesterol_total=cholesterol_total,
+                    hdl=hdl,
+                    ldl=ldl,
+                    glucose=glucose,
+                    is_smoker=is_smoker,
+                    is_diabetic=is_diabetic,
+                    is_hypertensive=is_hypertensive,
+                    bmi=bmi,
+                    is_on_bp_meds=is_on_bp_meds,
+                    race="hispanic",  # Default for Colombia
+                    family_history_cvd=False  # Would need this data
+                )
+
+                # Use Ausangate (recommended for Latin America) or highest risk
+                has_risk = comprehensive_risk["highest_risk_percentage"] >= 5
+                risk_level = comprehensive_risk["overall_risk_category"]
+
+                return has_risk, risk_level, comprehensive_risk
+
+            except Exception as e:
+                # Fall back to simple calculation if advanced fails
+                print(f"Advanced CV risk calculation failed: {e}")
+
+        # FALLBACK: Simplified risk scoring (original logic)
         risk_factors = 0
 
         # Age
@@ -511,15 +552,15 @@ class PatientClassifier:
 
         # Determine risk level
         if risk_factors == 0:
-            return False, None
+            return False, None, None
         elif risk_factors <= 1:
-            return True, "bajo"
+            return True, "bajo", None
         elif risk_factors <= 3:
-            return True, "medio"
+            return True, "medio", None
         elif risk_factors <= 5:
-            return True, "alto"
+            return True, "alto", None
         else:
-            return True, "muy_alto"
+            return True, "muy_alto", None
 
     @staticmethod
     def calculate_priority_score(
