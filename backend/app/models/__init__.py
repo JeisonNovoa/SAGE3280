@@ -10,9 +10,16 @@ from app.models.rias_guideline import RiasGuideline
 from app.models.eps import Eps
 from app.models.cie10 import Cie10
 from app.models.cups import Cups
+from app.models.user import User
+from app.models.role import Role, Permissions
+from app.models.token_blacklist import TokenBlacklist
+from app.models.audit_log import AuditLog, AuditActions, AuditCategories
 
 __all__ = [
     "Patient", "AttentionTypeEnum", "Upload", "Control", "Alert", "Exam", "Medication",
     "ControlRule", "AlertRule", "RiasGuideline",
-    "Eps", "Cie10", "Cups"
+    "Eps", "Cie10", "Cups",
+    "User", "Role", "Permissions",
+    "TokenBlacklist",
+    "AuditLog", "AuditActions", "AuditCategories"
 ]

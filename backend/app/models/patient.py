@@ -59,7 +59,7 @@ class Patient(Base):
 
     # Clasificación
     age_group = Column(Enum(AgeGroupEnum), nullable=True, index=True)
-    attention_type = Column(Enum(AttentionTypeEnum), nullable=True, index=True)  # Grupo A/B/C
+    attention_type = Column(String(20), nullable=True, index=True)  # Grupo A/B/C (grupo_a, grupo_b, grupo_c)
 
     # Contacto
     phone = Column(String(20), nullable=True)

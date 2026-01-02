@@ -1,18 +1,23 @@
 from fastapi import APIRouter, UploadFile, File, Depends, HTTPException, BackgroundTasks
 from sqlalchemy.orm import Session
 from app.database import get_db
-from app.models import Patient, Upload, Control, Alert, Exam
+from app.models import Patient, Upload, Control, Alert, Exam, User
 from app.models.upload import UploadStatusEnum
 from app.models.control import ControlStatusEnum
 from app.models.alert import AlertStatusEnum
 from app.services import ExcelProcessor, PatientClassifier, AlertGenerator
 from app.schemas import UploadResponse, UploadStats
+from app.dependencies.auth import require_permission, get_current_active_user
 from datetime import datetime, date
 import os
 import uuid
 from typing import List, Dict
 
-router = APIRouter(prefix="/upload", tags=["upload"])
+router = APIRouter(
+    prefix="/upload",
+    tags=["upload"],
+    dependencies=[Depends(require_permission("upload.create"))]  # Requiere permiso upload.create
+)
 
 # Directory for storing uploaded files
 UPLOAD_DIR = "uploads"
@@ -71,30 +76,43 @@ def process_upload(upload_id: int, file_path: str, db: Session):
     """
     Background task to process uploaded file.
     """
+    print(f"\n{'='*80}")
+    print(f"🚀 INICIANDO PROCESAMIENTO DE UPLOAD ID: {upload_id}")
+    print(f"{'='*80}")
+
     upload = db.query(Upload).filter(Upload.id == upload_id).first()
     if not upload:
+        print(f"❌ ERROR: Upload {upload_id} no encontrado en BD")
         return
 
     try:
         # Update status to processing
+        print(f"📝 Actualizando estado a PROCESSING...")
         upload.status = UploadStatusEnum.PROCESSING
         db.commit()
+        print(f"✅ Estado actualizado a PROCESSING")
 
-        # Process Excel file
-        processor = ExcelProcessor()
+        # Process Excel file (pass db session for EPS normalization)
+        print(f"📂 Cargando archivo: {file_path}")
+        processor = ExcelProcessor(db=db)
         success, message, row_count = processor.load_file(file_path)
+        print(f"📊 Resultado de carga: success={success}, rows={row_count}")
 
         if not success:
+            print(f"❌ ERROR en carga de archivo: {message}")
             upload.status = UploadStatusEnum.FAILED
             upload.error_message = message
             db.commit()
             return
 
         upload.total_rows = row_count
+        print(f"✅ Archivo cargado: {row_count} filas totales")
 
         # Extract patient data
+        print(f"🔍 Extrayendo datos de pacientes...")
         patients_data = processor.extract_patients()
         upload.processed_rows = len(patients_data)
+        print(f"✅ Pacientes extraídos: {len(patients_data)}")
 
         success_count = 0
         error_count = 0
@@ -103,8 +121,15 @@ def process_upload(upload_id: int, file_path: str, db: Session):
         duplicate_docs = []
 
         # Process each patient
-        for patient_data in patients_data:
+        print(f"\n{'='*80}")
+        print(f"👥 PROCESANDO {len(patients_data)} PACIENTES...")
+        print(f"{'='*80}")
+
+        for idx, patient_data in enumerate(patients_data, 1):
             try:
+                if idx % 5 == 1 or idx == len(patients_data):
+                    print(f"  📌 Procesando paciente {idx}/{len(patients_data)}: {patient_data.get('document_number')} - {patient_data.get('full_name')}")
+
                 # Check if patient already exists by document number
                 existing_patient = db.query(Patient).filter(
                     Patient.document_number == patient_data['document_number']
@@ -155,7 +180,7 @@ def process_upload(upload_id: int, file_path: str, db: Session):
                 # cv_detailed contains Framingham/ASCVD/Ausangate results if calculated
 
                 # Classify patient by attention type (Grupo A/B/C)
-                attention_type = PatientClassifier.classify_attention_type(
+                attention_type_str = PatientClassifier.classify_attention_type(
                     is_hypertensive=patient.is_hypertensive,
                     is_diabetic=patient.is_diabetic,
                     has_hypothyroidism=getattr(patient, 'has_hypothyroidism', False),
@@ -165,7 +190,8 @@ def process_upload(upload_id: int, file_path: str, db: Session):
                     has_cardiovascular_disease=getattr(patient, 'has_cardiovascular_disease', False),
                     has_cardiovascular_risk=has_cv_risk
                 )
-                patient.attention_type = attention_type
+                # Assign the string value directly (SQLAlchemy will handle enum conversion)
+                patient.attention_type = attention_type_str
 
                 # Generate controls
                 required_controls = PatientClassifier.determine_required_controls(
@@ -238,10 +264,20 @@ def process_upload(upload_id: int, file_path: str, db: Session):
 
             except Exception as e:
                 error_count += 1
-                print(f"Error processing patient {patient_data.get('document_number')}: {str(e)}")
+                print(f"  ❌ ERROR procesando paciente {patient_data.get('document_number')}: {str(e)}")
+                import traceback
+                traceback.print_exc()
                 continue
 
         # Update upload record with detailed statistics
+        print(f"\n{'='*80}")
+        print(f"📊 FINALIZANDO UPLOAD {upload_id}")
+        print(f"{'='*80}")
+        print(f"✅ Exitosos: {success_count}")
+        print(f"❌ Errores: {error_count}")
+        print(f"🆕 Creados: {created_count}")
+        print(f"♻️  Actualizados: {updated_count}")
+
         upload.success_rows = success_count
         upload.error_rows = error_count
         upload.status = UploadStatusEnum.COMPLETED
@@ -254,10 +290,28 @@ def process_upload(upload_id: int, file_path: str, db: Session):
             print(f"📊 {duplicate_msg}")
             upload.error_message = duplicate_msg if not upload.error_message else upload.error_message
 
+        # Log EPS normalization statistics
+        if hasattr(processor, 'eps_normalization_stats'):
+            stats = processor.eps_normalization_stats
+            print(f"\n📋 ESTADÍSTICAS DE NORMALIZACIÓN EPS:")
+            print(f"   Total procesadas: {stats['total']}")
+            print(f"   ✅ Normalizadas: {stats['normalized']}")
+            print(f"   ❌ No encontradas: {stats['not_found']}")
+            print(f"   ⚠️  Vacías: {stats['empty']}")
+
         db.commit()
-        print(f"✅ Upload {upload_id} completado: {success_count} exitosos, {error_count} errores")
+        print(f"\n✅ ✅ ✅ Upload {upload_id} COMPLETADO EXITOSAMENTE")
+        print(f"{'='*80}\n")
 
     except Exception as e:
+        print(f"\n{'='*80}")
+        print(f"❌ ❌ ❌ ERROR CRÍTICO EN UPLOAD {upload_id}")
+        print(f"{'='*80}")
+        print(f"Error: {str(e)}")
+        import traceback
+        traceback.print_exc()
+        print(f"{'='*80}\n")
+
         upload.status = UploadStatusEnum.FAILED
         upload.error_message = str(e)
         db.commit()

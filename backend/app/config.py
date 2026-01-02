@@ -49,10 +49,18 @@ class Settings(BaseSettings):
                 return [item.strip() for item in v.split(',')]
         return v
 
-    # Security
+    # Security & JWT
     SECRET_KEY: str = "your-secret-key-change-this-in-production"
     ALGORITHM: str = "HS256"
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 30
+    REFRESH_TOKEN_EXPIRE_DAYS: int = 7
+
+    # Password hashing
+    BCRYPT_ROUNDS: int = 12
+
+    # Account lockout (security)
+    MAX_LOGIN_ATTEMPTS: int = 5
+    ACCOUNT_LOCKOUT_MINUTES: int = 15
 
     # File Upload
     MAX_UPLOAD_SIZE: int = 52428800  # 50MB

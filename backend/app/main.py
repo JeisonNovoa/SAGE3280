@@ -2,7 +2,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from app.config import settings
 from app.database import init_db
-from app.api.routes import upload, patients, stats, export, controls, alerts, admin, rules
+from app.api.routes import upload, patients, stats, export, controls, alerts, admin, rules, catalogs, auth, users, roles, audit
 
 # Create FastAPI app
 app = FastAPI(
@@ -24,6 +24,10 @@ app.add_middleware(
 )
 
 # Include routers
+app.include_router(auth.router, prefix="/api")  # Authentication (login, logout, refresh, me)
+app.include_router(users.router, prefix="/api")  # User management (CRUD, only Admin)
+app.include_router(roles.router, prefix="/api")  # Role management (CRUD, only Admin)
+app.include_router(audit.router, prefix="/api")  # Audit logs (Admin and Médico)
 app.include_router(upload.router, prefix="/api")
 app.include_router(patients.router, prefix="/api")
 app.include_router(stats.router, prefix="/api")
@@ -32,6 +36,7 @@ app.include_router(controls.router, prefix="/api")
 app.include_router(alerts.router, prefix="/api")
 app.include_router(admin.router, prefix="/api")
 app.include_router(rules.router, prefix="/api")  # Configurable rules management
+app.include_router(catalogs.router, prefix="/api")  # Official catalogs (EPS, CIE-10, CUPS)
 
 
 @app.on_event("startup")

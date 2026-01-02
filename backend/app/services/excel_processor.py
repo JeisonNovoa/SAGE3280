@@ -2,7 +2,11 @@ import pandas as pd
 from typing import Dict, List, Tuple, Optional
 from datetime import datetime, date
 import re
+from sqlalchemy.orm import Session
+from sqlalchemy import func
 from app.services.excel_validator import ExcelValidator
+from app.models.eps import Eps
+from app.models.cie10 import Cie10
 
 
 class ExcelProcessor:
@@ -33,10 +37,23 @@ class ExcelProcessor:
         'last_dm_control': ['fecha_ultimo_control_dm', 'ultimo_control_dm', 'ult_control_dm', 'fechaultimocontroldm'],
     }
 
-    def __init__(self):
+    def __init__(self, db: Optional[Session] = None):
         self.df: Optional[pd.DataFrame] = None
         self.column_map: Dict[str, str] = {}
         self.validation_result: Optional[Dict] = None
+        self.db = db
+        self.eps_normalization_stats = {
+            'total': 0,
+            'normalized': 0,
+            'not_found': 0,
+            'empty': 0
+        }
+        self.cie10_normalization_stats = {
+            'total_codes_found': 0,
+            'normalized': 0,
+            'not_found': 0,
+            'patients_with_codes': 0
+        }
 
     def _normalize_column_name(self, col_name: str) -> str:
         """
@@ -115,6 +132,10 @@ class ExcelProcessor:
         if pd.isna(date_value):
             return None
 
+        # Handle empty strings
+        if isinstance(date_value, str) and date_value.strip() == '':
+            return None
+
         try:
             if isinstance(date_value, (datetime, pd.Timestamp)):
                 return date_value.date()
@@ -122,7 +143,7 @@ class ExcelProcessor:
                 # Try common date formats
                 for fmt in ['%Y-%m-%d', '%d/%m/%Y', '%m/%d/%Y', '%d-%m-%Y']:
                     try:
-                        return datetime.strptime(date_value, fmt).date()
+                        return datetime.strptime(date_value.strip(), fmt).date()
                     except ValueError:
                         continue
             return None
@@ -184,6 +205,168 @@ class ExcelProcessor:
 
         return is_hypertensive, is_diabetic, is_pregnant
 
+    def _normalize_eps(self, eps_value) -> Tuple[Optional[str], bool]:
+        """
+        Normalize EPS value using the official catalog.
+        Returns: (normalized_eps_string, was_normalized)
+
+        Format: "CODE - NAME" (e.g., "EPS010 - EPS SURA")
+        """
+        if pd.isna(eps_value) or not eps_value:
+            self.eps_normalization_stats['empty'] += 1
+            return None, False
+
+        self.eps_normalization_stats['total'] += 1
+
+        # If no database session, return original value
+        if not self.db:
+            return str(eps_value).strip(), False
+
+        search_term = str(eps_value).strip()
+        search_term_lower = search_term.lower()
+
+        # Try to find EPS in catalog using fuzzy search
+        # 1. Try exact code match (case-insensitive)
+        eps = self.db.query(Eps).filter(
+            func.lower(Eps.code) == search_term_lower,
+            Eps.is_active == True
+        ).first()
+
+        if eps:
+            normalized = f"{eps.code} - {eps.name}"
+            self.eps_normalization_stats['normalized'] += 1
+            return normalized, True
+
+        # 2. Try by NIT (exact)
+        eps = self.db.query(Eps).filter(
+            Eps.nit == search_term,
+            Eps.is_active == True
+        ).first()
+
+        if eps:
+            normalized = f"{eps.code} - {eps.name}"
+            self.eps_normalization_stats['normalized'] += 1
+            return normalized, True
+
+        # 3. Try by short_name (case-insensitive, partial match)
+        eps = self.db.query(Eps).filter(
+            func.lower(Eps.short_name).like(f"%{search_term_lower}%"),
+            Eps.is_active == True
+        ).first()
+
+        if eps:
+            normalized = f"{eps.code} - {eps.name}"
+            self.eps_normalization_stats['normalized'] += 1
+            return normalized, True
+
+        # 4. Try by official name (case-insensitive, partial match)
+        eps = self.db.query(Eps).filter(
+            func.lower(Eps.name).like(f"%{search_term_lower}%"),
+            Eps.is_active == True
+        ).first()
+
+        if eps:
+            normalized = f"{eps.code} - {eps.name}"
+            self.eps_normalization_stats['normalized'] += 1
+            return normalized, True
+
+        # 5. Try partial code match (e.g., "EPS010" or "010")
+        eps = self.db.query(Eps).filter(
+            func.lower(Eps.code).like(f"%{search_term_lower}%"),
+            Eps.is_active == True
+        ).first()
+
+        if eps:
+            normalized = f"{eps.code} - {eps.name}"
+            self.eps_normalization_stats['normalized'] += 1
+            return normalized, True
+
+        # Not found in catalog - return original with warning flag
+        self.eps_normalization_stats['not_found'] += 1
+        return f"[NO_NORMALIZADA] {search_term}", False
+
+    def _extract_and_normalize_cie10_codes(self, diagnoses_value) -> List[str]:
+        """
+        Extract and normalize CIE-10 codes from diagnoses text.
+        Returns: List of normalized CIE-10 codes in format "CODE - DESCRIPTION"
+
+        Searches for CIE-10 code patterns like:
+        - I10, E11, J44 (single letter + 2 digits)
+        - E11.9, I11.9 (with decimal subcategory)
+        - Also searches for disease keywords to suggest codes
+        """
+        if pd.isna(diagnoses_value) or not diagnoses_value:
+            return []
+
+        if not self.db:
+            return []  # No database, can't normalize
+
+        diagnoses_str = str(diagnoses_value).upper()
+        normalized_codes = []
+        found_codes = set()  # Track to avoid duplicates
+
+        # Regex pattern for CIE-10 codes: Letter(s) + Digits + optional (.Digits)
+        # Examples: I10, E11.9, J44, N18.3
+        cie10_pattern = r'\b([A-Z]\d{2}(?:\.\d{1,2})?)\b'
+
+        # Find all CIE-10 code patterns in text
+        matches = re.findall(cie10_pattern, diagnoses_str)
+
+        for code in matches:
+            if code in found_codes:
+                continue  # Skip duplicates
+
+            self.cie10_normalization_stats['total_codes_found'] += 1
+
+            # Try to find code in catalog (case-insensitive)
+            cie10 = self.db.query(Cie10).filter(
+                func.upper(Cie10.code) == code.upper()
+            ).first()
+
+            if cie10:
+                normalized = f"{cie10.code} - {cie10.short_description}"
+                normalized_codes.append(normalized)
+                found_codes.add(code)
+                self.cie10_normalization_stats['normalized'] += 1
+            else:
+                # Code not found in catalog
+                normalized_codes.append(f"[NO_NORMALIZADO] {code}")
+                found_codes.add(code)
+                self.cie10_normalization_stats['not_found'] += 1
+
+        # If no codes found with regex, try keyword search for common conditions
+        if not normalized_codes:
+            # Search for keywords that might match CIE-10 descriptions
+            keywords = []
+
+            # Extract meaningful words (3+ chars) from diagnoses
+            words = re.findall(r'\b[A-ZÁÉÍÓÚÑ]{3,}\b', diagnoses_str)
+
+            # Filter to get most relevant keywords (skip common words)
+            common_words = {'CON', 'SIN', 'PARA', 'LOS', 'LAS', 'DEL', 'UNA', 'POR', 'QUE'}
+            keywords = [w for w in words if w not in common_words][:3]  # Max 3 keywords
+
+            for keyword in keywords:
+                # Search in CIE-10 catalog by description
+                cie10_matches = self.db.query(Cie10).filter(
+                    func.upper(Cie10.short_description).like(f"%{keyword}%")
+                ).filter(
+                    Cie10.is_common == True  # Only search common codes
+                ).limit(1).all()  # Limit to 1 to avoid too many matches
+
+                for cie10 in cie10_matches:
+                    if cie10.code not in found_codes:
+                        normalized = f"{cie10.code} - {cie10.short_description} [SUGERIDO]"
+                        normalized_codes.append(normalized)
+                        found_codes.add(cie10.code)
+                        self.cie10_normalization_stats['total_codes_found'] += 1
+                        self.cie10_normalization_stats['normalized'] += 1
+
+        if normalized_codes:
+            self.cie10_normalization_stats['patients_with_codes'] += 1
+
+        return normalized_codes
+
     def extract_patients(self) -> List[Dict]:
         """
         Extract patient data from DataFrame.
@@ -220,6 +403,9 @@ class ExcelProcessor:
                 diagnoses_value = self._get_column_value(row, 'diagnoses')
                 is_hypertensive, is_diabetic, is_pregnant = self._extract_diagnoses(diagnoses_value)
 
+                # Extract and normalize CIE-10 codes
+                cie10_codes = self._extract_and_normalize_cie10_codes(diagnoses_value)
+
                 # Parse control dates
                 last_general_control = self._parse_date(self._get_column_value(row, 'last_general_control'))
                 last_3280_control = self._parse_date(self._get_column_value(row, 'last_3280_control'))
@@ -241,9 +427,11 @@ class ExcelProcessor:
                     'address': str(self._get_column_value(row, 'address', '')).strip() or None,
                     'neighborhood': str(self._get_column_value(row, 'neighborhood', '')).strip() or None,
                     'city': str(self._get_column_value(row, 'city', '')).strip() or None,
-                    'eps': str(self._get_column_value(row, 'eps', '')).strip() or None,
+                    'eps': self._normalize_eps(self._get_column_value(row, 'eps'))[0],
                     'tipo_convenio': str(self._get_column_value(row, 'tipo_convenio', '')).strip() or None,
                     'diagnoses': str(diagnoses_value) if not pd.isna(diagnoses_value) else None,
+                    'cie10_codes': cie10_codes,  # Normalized CIE-10 codes
+                    'cie10_codes_count': len(cie10_codes),  # Number of codes found
                     'is_hypertensive': is_hypertensive,
                     'is_diabetic': is_diabetic,
                     'is_pregnant': is_pregnant,
@@ -273,4 +461,6 @@ class ExcelProcessor:
             'total_rows': len(self.df),
             'columns_found': list(self.column_map.keys()),
             'columns_missing': [k for k in self.COLUMN_MAPPINGS.keys() if k not in self.column_map],
+            'eps_normalization': self.eps_normalization_stats,
+            'cie10_normalization': self.cie10_normalization_stats,
         }
